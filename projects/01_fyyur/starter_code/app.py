@@ -50,7 +50,6 @@ class Venue(db.Model):
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
     shows = db.relationship('Show', backref="venue", lazy=True)
-    num_upcoming_shows = db.Column(db.Integer, default=0)
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
 class Artist(db.Model):
@@ -64,7 +63,12 @@ class Artist(db.Model):
     genres = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
-    shows = db.relationship('Show', backref="artist", lazy=True)
+    upcoming_shows = db.relationship('Show', primaryjoin="and_(Artist.id==Show.artist_id, func.date(Show.start_time) >  str(func.now()) )", backref="upcoming_shows)", lazy=True)
+    past_shows = db.relationship('Show', primaryjoin="and_(Artist.id==Show.artist_id, func.date(Show.start_time) <  str(func.now()) )", backref="past_shows)", lazy=True)
+                        
+    num_upcoming_shows = db.Column(db.Integer, default=0)
+    past_shows_count = db.Column(db.Integer())
+    upcoming_shows_count =  db.Column(db.Integer())
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
@@ -76,6 +80,9 @@ class Show(db.Model):
   start_time = db.Column(db.String, nullable=False)
   venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'), nullable=False)
   artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'), nullable=False)
+  artist_name = db.Column(db.String(120), nullable=False)
+  venue_name = db.Column(db.String(120), nullable=False)
+  venue_image_link = db.Column(db.String(), nullable=False)
 
  
 # class Genres(db.Model):
@@ -137,7 +144,7 @@ def venues():
   #print(venues[0].Venue.state)
   #print(formatted)
   
-  return render_template('pages/venues.html', areas=formatted);
+  return render_template('pages/venues.html', areas=formatted)
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
@@ -258,7 +265,7 @@ def show_venue(venue_id):
   venue_data = Venue.query.get(venue_id)
   genres_sorted = venue_data.genres.strip('{}').replace('\'', '').replace(' ', '').split(',')
   venue_shows = Show.query.filter_by(venue_id = 1).all()
-  show = db.session.query)(Show, Artist).outerjoin(Artist, Show.artt_id = Artist.veni)
+  # show = db.session.query)(Show, Artist).outerjoin(Artist, Show.artt_id = Artist.veni)
   
   data = {
     'id': venue_data.id,
@@ -274,9 +281,10 @@ def show_venue(venue_id):
     'past_shows': []
   }
   for item in venue_shows:
-    if datetime.strptime('18/09/19 01:55:19', '%d/%m/%y %H:%M:%S') < datetime.now():
+    if datetime.strptime(item.start_time, '%Y-%m-%d %H:%M:%S') < datetime.now():
       data['past_shows'].append(item)
-    elif datetime.strptime('18/09/19 01:55:19', '%d/%m/%y %H:%M:%S') > datetime.now():
+      print(item.start_time)
+    elif datetime.strptime(item.start_time, '%Y-%m-%d %H:%M:%S') > datetime.now():
       data['upcoming_shows'].append(item)
 
   print(data)
@@ -453,6 +461,7 @@ def show_artist(artist_id):
   # }
   # list(filter(lambda d: d['id'] == artist_id, [data1, data2, data3]))[0]
   data = Artist.query.get(artist_id)
+  # print(data.shows[0].up)
   return render_template('pages/show_artist.html', artist=data)
 
 #  Update
@@ -601,23 +610,10 @@ def shows():
   #   "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
   #   "start_time": "2035-04-15T20:00:00.000Z"
   # }]
-  shows = []
-  shows_list = Show.query.all()
-  for item in shows_list:
-    obj = {
-      "id": item.id,
-      "venue_id": item.venue_id,
-      "artist_id": item.artist_id,
-      "start_time": item.start_time
-    }
-    artist = Artist.query.get(item.artist_id)
-    obj['artist_name'] = artist.name
-    obj['artist_image_link'] = artist.image_link
 
-    shows.append(obj)
-  
-  
-  return render_template('pages/shows.html', shows=shows)
+  shows_list = Show.query.all()
+
+  return render_template('pages/shows.html', shows=shows_list)
 
 @app.route('/shows/create')
 def create_shows():
@@ -635,8 +631,16 @@ def create_show_submission():
   show_venue_id = request.form.get('venue_id')
   show_time = request.form.get('start_time')
   try:
-    show = Show(start_time=show_time, venue_id=show_venue_id, artist_id=show_artist_id)
+    artist = Artist.query.get(show_artist_id)
+    venue = Venue.query.get(show_venue_id)
+    show = Show(start_time=show_time, venue_id=show_venue_id, artist_id=show_artist_id, artist_name=artist.name, venue_image_link=venue.image_link, venue_name=venue.name)
+    show.artist_name = artist.name
+    show.artist_image_link = venue.image_link
     db.session.add(show)
+    if datetime.strptime(show_time, '%Y-%m-%d %H:%M:%S') >= datetime.now():
+      artist.upcoming_shows.append(show)
+    else:
+      artist.past_shows.append(show)
     db.session.commit()
   except:
     error = True
