@@ -6,6 +6,15 @@
 		<h1 class="monospace">
 			{{ venue.name }}
 		</h1>
+		<div class="link-block">
+			<i class="fas fa-edit"></i>
+			<span><a href="/venues/{{ venue.id }}/edit">Edit Venue</a></span>
+		</div>
+		<div class="link-block">
+			<i class="fas fa-trash"></i>
+			<input type="button" value="Delete Venue" class="btn btn-primary btn-sm ml-4">
+		</div>
+
 		<p class="subtitle">
 			ID: {{ venue.id }}
 		</p>
