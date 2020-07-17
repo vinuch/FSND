@@ -6,6 +6,16 @@
 		<h1 class="monospace">
 			{{ artist.name }}
 		</h1>
+		<div class="link-block">
+			<i class="fas fa-edit"></i>
+			<span><a href="/artists/{{ artist.id }}/edit">Edit Artist</a></span>
+		</div>
+		<div class="link-block">
+			<form method="post">
+				<i class="fas fa-trash"></i>
+					<input type="submit" value="Delete Artist" class="btn btn-primary btn-sm ml-4">
+			</form>
+		</div>
 		<p class="subtitle">
 			ID: {{ artist.id }}
 		</p>
